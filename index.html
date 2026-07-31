@@ -86,6 +86,46 @@
   }
   .header-title { font-weight: 800; font-size: 18px; }
   .header-owner { font-size: 12px; opacity: 0.85; margin-top: 2px; line-height: 1.4; }
+  .owner-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 2px 0 0 0;
+    margin: 0;
+    color: white;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .owner-btn .line { font-size: 12px; opacity: 0.85; line-height: 1.4; }
+  .owner-btn .hint { opacity: 0.7; font-style: italic; }
+
+  .owner-edit { margin: 10px 6px 0 6px; }
+  .owner-edit .add-bar { margin: 0 0 8px 0; }
+  .owner-edit .save-btn {
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  .owner-edit .cancel-btn {
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+
   .theme-btn {
     position: absolute;
     top: 14px; right: 14px;
@@ -312,10 +352,25 @@
         <div class="header-icon">🛒</div>
         <div>
           <div class="header-title">Shopping List</div>
-          <div class="header-owner">MD Nurul Amin Mollick</div>
-          <div class="header-owner">01711284217</div>
+          <button class="owner-btn" id="ownerBtn" title="নাম-নম্বর বদলাও">
+            <div class="line" id="ownerName"></div>
+            <div class="line" id="ownerPhone"></div>
+          </button>
           <div class="header-owner" id="headerDate"></div>
         </div>
+      </div>
+    </div>
+
+    <div class="owner-edit" id="ownerEdit" hidden>
+      <div class="add-bar">
+        <input type="text" id="ownerNameInput" placeholder="তোমার নাম" autocomplete="name">
+      </div>
+      <div class="add-bar">
+        <input type="tel" id="ownerPhoneInput" placeholder="মোবাইল নম্বর" inputmode="tel" autocomplete="tel">
+      </div>
+      <div style="text-align:right; padding:0 4px;">
+        <button class="cancel-btn" id="ownerCancel">বাতিল</button>
+        <button class="save-btn" id="ownerSave">সেভ করো</button>
       </div>
     </div>
 
@@ -360,12 +415,14 @@
   const RESET_KEY = "shopping-list:lastResetDate";
   const HISTORY_KEY = "shopping-list:history";
   const THEME_KEY = "shopping-list:theme";
+  const OWNER_KEY = "shopping-list:owner";
   const THEMES = ["standard", "dark", "ocean"];
   const HISTORY_DAYS = 90;
 
   let items = [];
   let history = {};
   let editingId = null;
+  let owner = { name: "", phone: "" };
   let lastRenderedDay = "";
 
   const CATEGORIES = [
@@ -448,6 +505,51 @@
       }
     });
     return changed;
+  }
+
+  /* ---------- নাম ও নম্বর (শুধু এই ফোনে থাকে) ---------- */
+
+  function loadOwner() {
+    try {
+      const raw = readStore(OWNER_KEY);
+      if (raw) owner = JSON.parse(raw);
+    } catch (e) { owner = { name: "", phone: "" }; }
+    if (!owner || typeof owner !== "object") owner = { name: "", phone: "" };
+    owner.name = owner.name || "";
+    owner.phone = owner.phone || "";
+  }
+
+  function renderOwner() {
+    const nameEl = document.getElementById("ownerName");
+    const phoneEl = document.getElementById("ownerPhone");
+    if (!owner.name && !owner.phone) {
+      nameEl.textContent = "✎ নাম-নম্বর যোগ করো";
+      nameEl.className = "line hint";
+      phoneEl.textContent = "";
+    } else {
+      nameEl.textContent = owner.name;
+      nameEl.className = "line";
+      phoneEl.textContent = owner.phone;
+    }
+  }
+
+  function openOwnerEdit() {
+    document.getElementById("ownerNameInput").value = owner.name;
+    document.getElementById("ownerPhoneInput").value = owner.phone;
+    document.getElementById("ownerEdit").hidden = false;
+    document.getElementById("ownerNameInput").focus();
+  }
+
+  function closeOwnerEdit() {
+    document.getElementById("ownerEdit").hidden = true;
+  }
+
+  function saveOwner() {
+    owner.name = document.getElementById("ownerNameInput").value.trim();
+    owner.phone = document.getElementById("ownerPhoneInput").value.trim();
+    writeStore(OWNER_KEY, JSON.stringify(owner));
+    closeOwnerEdit();
+    renderOwner();
   }
 
   /* ---------- history sync ---------- */
@@ -719,7 +821,13 @@
   document.getElementById("historyBtn").addEventListener("click", searchHistory);
   document.getElementById("historyDate").addEventListener("change", searchHistory);
   document.getElementById("themeBtn").addEventListener("click", cycleTheme);
+  document.getElementById("ownerBtn").addEventListener("click", openOwnerEdit);
+  document.getElementById("ownerSave").addEventListener("click", saveOwner);
+  document.getElementById("ownerCancel").addEventListener("click", closeOwnerEdit);
+  document.getElementById("ownerPhoneInput").addEventListener("keydown", (e) => { if (e.key === "Enter") saveOwner(); });
 
+  loadOwner();
+  renderOwner();
   loadItems();
   loadHistory();
   if (pruneHistory()) saveHistory();
